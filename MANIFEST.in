@@ -1,0 +1,11 @@
+include LICENSE README.md
+include requirements*.txt
+include scripts/train.sh
+recursive-include licenses *.txt
+recursive-include configs *.yaml
+recursive-include agent_system/environments/env_package/alfworld/configs *.yaml
+recursive-include agent_system/environments/env_package/alfworld/alfworld *.json *.npy *.pddl *.twl2 *.c *.h *.l *.y *.md *.pdf makefile
+recursive-include verl/trainer/config *.yaml
+include verl/version/version
+include deltattg/version.txt
+global-exclude __pycache__ *.py[cod] .DS_Store

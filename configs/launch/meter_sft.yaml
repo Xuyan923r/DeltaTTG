@@ -1,0 +1,14 @@
+overrides:
+  data.train_files: ${TRAIN_FILE}
+  data.val_files: ${VAL_FILE}
+  data.train_batch_size: ${GLOBAL_BATCH_SIZE}
+  data.max_length: ${MAX_LENGTH}
+  data.truncation: error
+  model.enable_gradient_checkpointing: 'True'
+  optim.lr: ${LEARNING_RATE}
+  optim.betas: '[0.9,0.95]'
+  optim.clip_grad: '1.0'
+  trainer.experiment_name: ${EXPERIMENT_NAME}
+  trainer.default_local_dir: ${OUTPUT_DIR}
+  trainer.total_epochs: ${TOTAL_EPOCHS}
+  trainer.logger: '[''console'',''wandb'']'

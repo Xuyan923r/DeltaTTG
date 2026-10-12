@@ -1,0 +1,5 @@
+method_name: DeltaTTG-w/o-PT
+meter_kind: untrained_qwen3_4b_instruct_2507
+hydra_overrides:
+- credit_assignment.state_signal=remaining_action_tokens
+- meter.output_mode=canonical_generation

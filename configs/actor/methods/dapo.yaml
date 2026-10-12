@@ -1,0 +1,20 @@
+env:
+  ACTOR_USE_KL_LOSS: 'False'
+  DAPO_MAX_NUM_GEN_BATCHES: '10'
+  DAPO_MIN_REWARD_STD: '1e-4'
+overrides:
+  # DAPO uses GRPO advantages with asymmetric clipping and dynamic sampling.
+  algorithm.adv_estimator: grpo
+  algorithm.filter_groups.enable: 'True'
+  algorithm.filter_groups.max_num_gen_batches: ${DAPO_MAX_NUM_GEN_BATCHES}
+  algorithm.filter_groups.min_reward_std: ${DAPO_MIN_REWARD_STD}
+  actor_rollout_ref.actor.use_kl_loss: ${ACTOR_USE_KL_LOSS}
+  actor_rollout_ref.actor.clip_ratio_low: '0.2'
+  actor_rollout_ref.actor.clip_ratio_high: '0.28'
+  actor_rollout_ref.actor.policy_loss.loss_mode: vanilla
+  actor_rollout_ref.actor.loss_agg_mode: token-mean
+  credit_assignment.enabled: 'False'
+required_paths:
+- actor_rollout_ref.model.path
+- data.train_files
+- data.val_files

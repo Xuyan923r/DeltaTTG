@@ -1,0 +1,3 @@
+# Base requirements and SGLang extras are defined once in setup.py.
+# Run from the repository root.
+-e .[sglang,gpu]

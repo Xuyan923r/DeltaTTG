@@ -1,0 +1,4 @@
+method_name: DeltaTTG-rho=0
+hydra_overrides:
+- credit_assignment.state_signal=remaining_action_tokens
+- credit_assignment.uniform_credit_mix=0.0

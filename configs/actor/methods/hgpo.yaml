@@ -1,0 +1,25 @@
+env:
+  HGPO_GAMMA: '0.95'
+  HGPO_MODE: mean_std_norm
+  HGPO_LENGTH_WEIGHT_ALPHA: '1.0'
+  HGPO_ENABLE_SIMILARITY: 'False'
+  HGPO_SIMILARITY_THRESH: '0.95'
+overrides:
+  algorithm.adv_estimator: hgpo
+  algorithm.gamma: ${HGPO_GAMMA}
+  algorithm.hgpo.mode: ${HGPO_MODE}
+  algorithm.hgpo.weight_type: length
+  algorithm.hgpo.length_weight_alpha: ${HGPO_LENGTH_WEIGHT_ALPHA}
+  algorithm.hgpo.base_group: 'False'
+  algorithm.hgpo.enable_similarity: ${HGPO_ENABLE_SIMILARITY}
+  algorithm.hgpo.similarity_thresh: ${HGPO_SIMILARITY_THRESH}
+  algorithm.filter_groups.enable: 'False'
+  credit_assignment.enabled: 'False'
+required_paths:
+- actor_rollout_ref.model.path
+- data.train_files
+- data.val_files
+tasks:
+  papersearchqa:
+    env:
+      HGPO_ENABLE_SIMILARITY: 'True'

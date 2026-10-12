@@ -1,0 +1,5 @@
+method_name: DeltaTTG-logit
+hydra_overrides:
+- credit_assignment.state_signal=completion_log_odds
+- credit_assignment.log_odds_clip=10.0
+- meter.output_mode=completion_log_odds

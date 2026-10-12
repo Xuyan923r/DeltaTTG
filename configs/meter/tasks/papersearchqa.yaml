@@ -1,0 +1,109 @@
+phases:
+  meter_sft:
+    env:
+      DATA_DIR: ${DELTATTG_DATA}/PaperSearchQA/meter_action_tokens
+      TRAIN_FILE: ${DATA_DIR}/sft/train.parquet
+      VAL_FILE: ${DATA_DIR}/sft/validation.parquet
+      VAL_JSONL: ${DATA_DIR}/sft/validation.jsonl
+      NUM_GPUS: '2'
+      TOTAL_EPOCHS: '1'
+      GLOBAL_BATCH_SIZE: '32'
+      MICRO_BATCH_SIZE_PER_GPU: '1'
+      MAX_LENGTH: '16384'
+      EVAL_FREQ: '50'
+      EVAL_BATCH_SIZE_PER_GPU: '32'
+      EVAL_MAX_NEW_TOKENS: '64'
+      LEARNING_RATE: 1e-5
+      PROJECT_NAME: DeltaTTG
+      EXP_NAME: ${MODEL}-${TASK}-${KIND}
+      EXPERIMENT_NAME: ${EXP_NAME}
+      OUTPUT_DIR: ${DELTATTG_STORAGE}/checkpoints/DeltaTTG/${EXP_NAME}
+      CKPT_DIR: ${OUTPUT_DIR}
+    command:
+    - python
+    - -m
+    - torch.distributed.run
+    - --standalone
+    - --nnodes=1
+    - --nproc-per-node=${NUM_GPUS}
+    - --module
+    - deltattg.integration.meter_sft
+    overrides:
+      data.micro_batch_size_per_gpu: ${MICRO_BATCH_SIZE_PER_GPU}
+      data.multiturn.enable: 'True'
+      data.multiturn.messages_key: messages
+      +data.multiturn.assistant_loss_mode: last
+      data.balance_dp_token: 'False'
+      model.partial_pretrain: ${MODEL_PATH}
+      model.strategy: fsdp
+      model.trust_remote_code: 'False'
+      model.fsdp_config.cpu_offload: 'False'
+      model.fsdp_config.offload_params: 'False'
+      use_remove_padding: 'True'
+      ulysses_sequence_parallel_size: '1'
+      optim.warmup_steps_ratio: '0.05'
+      optim.weight_decay: '0.1'
+      optim.lr_scheduler: cosine
+      trainer.project_name: ${PROJECT_NAME}
+      trainer.total_training_steps: 'null'
+      +meter_eval.data_path: ${VAL_JSONL}
+      +meter_eval.output_dir: ${OUTPUT_DIR}/generative_validation
+      +meter_eval.freq: ${EVAL_FREQ}
+      +meter_eval.batch_size: ${EVAL_BATCH_SIZE_PER_GPU}
+      +meter_eval.max_new_tokens: ${EVAL_MAX_NEW_TOKENS}
+      +meter_eval.max_samples: '-1'
+    required_paths:
+    - model.partial_pretrain
+    - data.train_files
+    - data.val_files
+    output_key: trainer.default_local_dir
+  meter_rl:
+    env:
+      DATA_DIR: ${DELTATTG_DATA}/PaperSearchQA/meter_action_tokens/rl
+      TRAIN_FILE: ${DATA_DIR}/train.parquet
+      VAL_FILE: ${DATA_DIR}/validation.parquet
+      NUM_GPUS: '2'
+      TRAIN_BATCH_SIZE: '64'
+      VAL_BATCH_SIZE: '64'
+      ROLLOUT_N: '8'
+      SAVE_FREQ: '50'
+      TOTAL_EPOCHS: '1'
+      PROJECT_NAME: DeltaTTG
+      EXP_NAME: ${MODEL}-${TASK}-${KIND}
+      EXPERIMENT_NAME: ${EXP_NAME}
+      OUTPUT_DIR: ${DELTATTG_STORAGE}/checkpoints/DeltaTTG/${EXP_NAME}
+      CKPT_DIR: ${OUTPUT_DIR}
+      MODEL_PATH: ''
+    command:
+    - python
+    - -m
+    - verl.trainer.main_ppo
+    overrides:
+      algorithm.filter_groups.enable: 'False'
+      data.val_batch_size: ${VAL_BATCH_SIZE}
+      data.max_response_length: '64'
+      data.filter_overlong_prompts: 'False'
+      +data.apply_chat_template_kwargs.enable_thinking: 'False'
+      actor_rollout_ref.actor.optim.lr: 3e-6
+      actor_rollout_ref.actor.ppo_mini_batch_size: '16'
+      actor_rollout_ref.actor.shuffle: 'False'
+      +actor_rollout_ref.actor.fsdp_config.model_dtype: bfloat16
+      actor_rollout_ref.rollout.mode: sync
+      actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu: '2'
+      actor_rollout_ref.rollout.gpu_memory_utilization: '0.45'
+      actor_rollout_ref.rollout.max_model_len: '16448'
+      actor_rollout_ref.rollout.max_num_batched_tokens: '32768'
+      actor_rollout_ref.rollout.max_num_seqs: '128'
+      actor_rollout_ref.rollout.enable_chunked_prefill: 'True'
+      actor_rollout_ref.rollout.temperature: '1.0'
+      actor_rollout_ref.rollout.top_p: '1.0'
+      actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu: '2'
+      +actor_rollout_ref.ref.fsdp_config.model_dtype: bfloat16
+      reward_model.reward_manager: naive
+      trainer.save_freq: ${SAVE_FREQ}
+      trainer.max_actor_ckpt_to_keep: '5'
+    required_paths:
+    - actor_rollout_ref.model.path
+    - data.train_files
+    - data.val_files
+    output_key: trainer.default_local_dir

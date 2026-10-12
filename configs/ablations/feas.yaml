@@ -1,0 +1,4 @@
+method_name: DeltaTTG-feas
+hydra_overrides:
+- credit_assignment.state_signal=binary_feasibility
+- meter.output_mode=canonical_generation

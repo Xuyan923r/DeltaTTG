@@ -1,0 +1,50 @@
+# DeltaTTG is applied after vanilla trajectory-level GRPO normalization. It then
+# redistributes each scalar trajectory advantage over verl-agent's native
+# step-independent rows. Token targets exclude environment observations.
+credit_assignment:
+  enabled: False
+  # remaining_action_tokens is the paper method. completion_log_odds is an
+  # ablation using log P(true) - log P(false) at the can_complete decision.
+  # outcome_value uses an externally supplied meter's predicted final score.
+  state_signal: remaining_action_tokens # remaining_action_tokens, binary_feasibility, completion_log_odds, outcome_value
+  log_odds_clip: 10.0
+  mode: sign_aware
+  uniform_credit_mix: 0.2
+  # step_broadcast: broadcast step weights; step_share: divide shares by action length.
+  token_allocation_mode: step_broadcast
+  max_token_multiplier: 5.0
+  # Cost assigned to estimated failure and unsuccessful terminal states.
+  # null falls back to data.max_response_length. The actor launcher explicitly
+  # sets a task-specific failure_cost, independently of action length; TTG estimates are uncapped.
+  failure_cost: null
+  # Optional TTG cost/difference clipping at failure_cost.
+  enable_cost_clipping: False
+  # Redistribute credit on both successful and failed trajectories.
+  skip_zero_advantage_trajectories: True
+  zero_advantage_epsilon: 1.0e-8
+  # An invalid meter output restores vanilla GRPO for its whole prompt group.
+
+meter:
+  model_path: null
+  backend: transformers
+  output_mode: canonical_generation # canonical_generation, completion_log_odds, value_generation
+  device: cuda:0
+  dtype: bfloat16
+  attn_implementation: null
+  trust_remote_code: False
+  max_new_tokens: 64
+  max_batch_tokens: 131072
+  batch_size: null
+  # vLLM-only scheduling knobs. A dedicated Ray GPU can accept the whole
+  # meter request set and continuously batch it with prefix caching.
+  continuous_batching: True
+  enable_prefix_caching: True
+  enable_chunked_prefill: True
+  gpu_memory_utilization: 0.85
+  max_num_seqs: 256
+  max_num_batched_tokens: 65536
+  enable_prefix_deduplication: True
+  retry_invalid_output_once: True
+  include_usage_summary: True
+  enable_thinking: False
+  render_tools: False

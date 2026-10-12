@@ -1,0 +1,11 @@
+# Shared base requirements come from setup.py.
+# Install the Ascend torch/torch-npu runtime separately for the target system.
+-e .
+bytecode
+numpy<2.0.0
+peft>=0.15.2
+mathruler
+einops
+hf_transfer
+triton-ascend==3.2.1
+TransferQueue==0.1.7

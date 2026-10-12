@@ -1,0 +1,4 @@
+method_name: DeltaTTG-pos
+hydra_overrides:
+- credit_assignment.state_signal=remaining_action_tokens
+- credit_assignment.mode=positive_progress

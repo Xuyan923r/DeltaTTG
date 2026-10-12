@@ -1,0 +1,143 @@
+env:
+  PYTHONUNBUFFERED: '1'
+  TOKENIZERS_PARALLELISM: 'true'
+  VLLM_USE_V1: '1'
+  VLLM_WORKER_MULTIPROC_METHOD: spawn
+  HYDRA_FULL_ERROR: '1'
+  PYTORCH_ALLOC_CONF: expandable_segments:True
+  ALFWORLD_DATA: ${REPO_ROOT}/data/alfworld
+  WANDB_MODE: online
+  WANDB_DIR: ${REPO_ROOT}/wandb
+  WANDB__SERVICE_WAIT: '300'
+  TRAIN_FILE: ${REPO_ROOT}/data/verl_agent/${ENVIRONMENT}/train.parquet
+  VAL_FILE: ${REPO_ROOT}/data/verl_agent/${ENVIRONMENT}/test.parquet
+  ROLLOUT_N: '8'
+  MAX_PROMPT_LENGTH: '8192'
+  # Single-action response limit; follows the task/model generation limit.
+  MAX_RESPONSE_LENGTH: ${MAX_ACTION_TOKENS}
+  MAX_ACTION_TOKENS: '1024'
+  TOTAL_EPOCHS: '2'
+  MODEL_PATH: ${DELTATTG_STORAGE}/models/${MODEL_DIRECTORY}
+  METER_MODEL: ''
+  EXP_NAME: ${MODEL}-${TASK}-${METHOD}${ABLATION_SUFFIX}
+  CHECKPOINT_DIR: ${DELTATTG_STORAGE}/checkpoints/DeltaTTG/${EXP_NAME}
+  ACTOR_GPUS: '2'
+  METER_BACKEND: ray_vllm
+  METER_MAX_NEW_TOKENS: '32'
+  METER_BATCH_SIZE: '4'
+  UNIFORM_CREDIT_MIX: '0.2'
+  TOKEN_ALLOCATION_MODE: step_broadcast
+  MAX_TOKEN_MULTIPLIER: '5.0'
+  FAILURE_COST: '16384'
+  ENABLE_COST_CLIPPING: 'False'
+  RAY_NUM_CPUS: '48'
+command:
+- python
+- -m
+- verl.trainer.main_ppo
+overrides:
+  +ray_init.address: local
+  ray_init.num_cpus: ${RAY_NUM_CPUS:-${NUM_CPUS:-24}}
+  algorithm.adv_estimator: grpo
+  algorithm.norm_adv_by_std_in_grpo: 'True'
+  algorithm.use_kl_in_reward: 'False'
+  algorithm.gamma: ${GAMMA:-1.0}
+  algorithm.filter_groups.enable: 'False'
+  data.train_files: ${TRAIN_FILE}
+  data.val_files: ${VAL_FILE}
+  data.train_batch_size: ${TRAIN_BATCH_SIZE}
+  data.val_batch_size: ${VAL_BATCH_SIZE}
+  data.max_prompt_length: ${MAX_PROMPT_LENGTH}
+  data.max_response_length: ${MAX_RESPONSE_LENGTH}
+  data.filter_overlong_prompts: 'True'
+  data.truncation: ${DATA_TRUNCATION:-left}
+  data.return_raw_chat: 'True'
+  +data.apply_chat_template_kwargs.enable_thinking: ${ENABLE_THINKING:-True}
+  actor_rollout_ref.model.path: ${MODEL_PATH}
+  actor_rollout_ref.model.use_remove_padding: 'True'
+  actor_rollout_ref.model.enable_gradient_checkpointing: 'True'
+  actor_rollout_ref.actor.optim.lr: ${LEARNING_RATE:-1e-6}
+  actor_rollout_ref.actor.optim.lr_warmup_steps_ratio: ${LR_WARMUP_STEPS_RATIO:-0.0}
+  actor_rollout_ref.actor.ppo_mini_batch_size: ${PPO_MINI_BATCH_SIZE:-8}
+  actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu: ${PPO_MICRO_BATCH_SIZE:-1}
+  actor_rollout_ref.actor.ppo_epochs: '1'
+  actor_rollout_ref.actor.clip_ratio_low: '0.2'
+  actor_rollout_ref.actor.clip_ratio_high: '0.28'
+  actor_rollout_ref.actor.shuffle: 'False'
+  actor_rollout_ref.actor.use_kl_loss: ${ACTOR_USE_KL_LOSS:-True}
+  actor_rollout_ref.actor.kl_loss_coef: ${KL_COEF:-0.001}
+  actor_rollout_ref.actor.kl_loss_type: low_var_kl
+  actor_rollout_ref.actor.entropy_coeff: ${ENTROPY_COEF:-0}
+  actor_rollout_ref.actor.use_invalid_action_penalty: ${USE_INVALID_ACTION_PENALTY:-False}
+  actor_rollout_ref.actor.invalid_action_penalty_coef: ${INVALID_ACTION_PENALTY_COEF:-0.1}
+  actor_rollout_ref.actor.fsdp_config.param_offload: ${ACTOR_PARAM_OFFLOAD:-True}
+  actor_rollout_ref.actor.fsdp_config.optimizer_offload: ${ACTOR_OPTIMIZER_OFFLOAD:-True}
+  actor_rollout_ref.rollout.response_length: ${MAX_ACTION_TOKENS}
+  actor_rollout_ref.rollout.name: vllm
+  actor_rollout_ref.rollout.mode: sync
+  actor_rollout_ref.rollout.n: '1'
+  actor_rollout_ref.rollout.tensor_model_parallel_size: ${ROLLOUT_TP_SIZE:-1}
+  actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu: ${LOG_PROB_MICRO_BATCH_SIZE:-1}
+  actor_rollout_ref.rollout.gpu_memory_utilization: ${GPU_MEMORY_UTILIZATION:-0.65}
+  actor_rollout_ref.rollout.max_num_batched_tokens: ${MAX_NUM_BATCHED_TOKENS:-8192}
+  actor_rollout_ref.rollout.enable_chunked_prefill: ${ENABLE_CHUNKED_PREFILL:-True}
+  actor_rollout_ref.rollout.enforce_eager: ${ENFORCE_EAGER:-True}
+  actor_rollout_ref.rollout.free_cache_engine: ${FREE_CACHE_ENGINE:-True}
+  actor_rollout_ref.rollout.temperature: ${TEMPERATURE:-1.0}
+  actor_rollout_ref.rollout.top_p: ${TOP_P:-1.0}
+  actor_rollout_ref.rollout.top_k: ${TOP_K:--1}
+  actor_rollout_ref.rollout.val_kwargs.temperature: ${VAL_TEMPERATURE:-0}
+  actor_rollout_ref.rollout.val_kwargs.top_p: ${VAL_TOP_P:-${TOP_P:-1.0}}
+  actor_rollout_ref.rollout.val_kwargs.top_k: ${VAL_TOP_K:-${TOP_K:--1}}
+  actor_rollout_ref.rollout.val_kwargs.do_sample: ${VAL_DO_SAMPLE:-False}
+  actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu: ${REF_LOG_PROB_MICRO_BATCH_SIZE:-1}
+  actor_rollout_ref.ref.fsdp_config.param_offload: ${REF_PARAM_OFFLOAD:-True}
+  reward_model.reward_manager: episode
+  env.env_name: ${ENV_NAME}
+  env.seed: ${SEED:-0}
+  env.max_steps: ${MAX_STEPS}
+  env.history_length: ${HISTORY_LENGTH:-2}
+  env.rollout.n: ${ROLLOUT_N}
+  env.resources_per_worker.num_cpus: ${NUM_CPUS_PER_ENV_WORKER:-0.1}
+  env.search.prompt_mode: ${SEARCH_PROMPT_MODE:-thinking}
+  env.search.search_url: ${SEARCH_URL:-http://127.0.0.1:8000/retrieve}
+  env.search.topk: ${SEARCH_TOPK:-3}
+  trainer.logger: '[''console'',''wandb'']'
+  trainer.project_name: ${WANDB_PROJECT}
+  trainer.experiment_name: ${EXP_NAME}
+  trainer.nnodes: '1'
+  trainer.n_gpus_per_node: ${ACTOR_GPUS}
+  trainer.default_local_dir: ${CHECKPOINT_DIR}
+  trainer.rollout_data_dir: ${ROLLOUT_DATA_DIR:-null}
+  trainer.resume_mode: ${RESUME_MODE:-auto}
+  trainer.val_before_train: ${VAL_BEFORE_TRAIN:-True}
+  trainer.test_freq: ${TEST_FREQ:-25}
+  trainer.save_freq: ${SAVE_FREQ:-25}
+  trainer.max_actor_ckpt_to_keep: ${MAX_CKPTS:-3}
+  trainer.total_epochs: ${TOTAL_EPOCHS}
+  trainer.total_training_steps: ${TOTAL_TRAINING_STEPS:-null}
+  actor_rollout_ref.actor.policy_loss.loss_mode: vanilla
+  actor_rollout_ref.actor.loss_agg_mode: token-mean
+  credit_assignment.enabled: 'True'
+  credit_assignment.mode: sign_aware
+  credit_assignment.uniform_credit_mix: ${UNIFORM_CREDIT_MIX}
+  credit_assignment.token_allocation_mode: ${TOKEN_ALLOCATION_MODE}
+  credit_assignment.max_token_multiplier: ${MAX_TOKEN_MULTIPLIER}
+  credit_assignment.failure_cost: ${FAILURE_COST}
+  credit_assignment.enable_cost_clipping: ${ENABLE_COST_CLIPPING}
+  meter.model_path: ${METER_MODEL}
+  meter.backend: ${METER_BACKEND}
+  meter.device: ${METER_DEVICE:-cuda:0}
+  meter.batch_size: ${METER_BATCH_SIZE}
+  meter.max_new_tokens: ${METER_MAX_NEW_TOKENS}
+  meter.enable_thinking: 'False'
+  meter.render_tools: 'False'
+  meter.gpu_memory_utilization: ${METER_GPU_MEMORY_UTILIZATION:-0.85}
+  meter.max_num_seqs: ${METER_MAX_NUM_SEQS:-256}
+  meter.max_num_batched_tokens: ${METER_MAX_NUM_BATCHED_TOKENS:-65536}
+required_paths:
+- actor_rollout_ref.model.path
+- meter.model_path
+- data.train_files
+- data.val_files
+output_key: trainer.default_local_dir

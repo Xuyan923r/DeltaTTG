@@ -1,0 +1,5 @@
+method_name: DeltaTTG-value
+meter_kind: external_outcome_value
+hydra_overrides:
+- credit_assignment.state_signal=outcome_value
+- meter.output_mode=value_generation

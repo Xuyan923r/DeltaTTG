@@ -1,0 +1,117 @@
+phases:
+  meter_sft:
+    env:
+      DATA_DIR: ${ROOT}/TTGData/ALFWorld/meter_action_tokens/sft
+      TRAIN_FILE: ${DATA_DIR}/train.parquet
+      VAL_FILE: ${DATA_DIR}/validation.parquet
+      EVAL_OUTPUT_DIR: ${OUTPUT_DIR}/test_evaluations
+      GLOBAL_BATCH_SIZE: '16'
+      MICRO_BATCH_SIZE: '1'
+      TOTAL_EPOCHS: '1'
+      MAX_LENGTH: '16384'
+      LEARNING_RATE: 1e-5
+      EVAL_FREQ: '25'
+      SAVE_FREQ: '20'
+      EVAL_BATCH_SIZE: '4'
+      EVAL_MAX_NEW_TOKENS: '64'
+      EVAL_MAX_SAMPLES: '-1'
+      PROJECT_NAME: DeltaTTG
+      EXP_NAME: ${MODEL}-${TASK}-${KIND}
+      EXPERIMENT_NAME: ${EXP_NAME}
+      OUTPUT_DIR: ${DELTATTG_STORAGE}/checkpoints/DeltaTTG/${EXP_NAME}
+      CKPT_DIR: ${OUTPUT_DIR}
+      NUM_GPUS: '1'
+      VAL_JSONL: ${DATA_DIR}/validation.jsonl
+      TEST_FILE: ${ROOT}/TTGData/ALFWorld/meter_action_tokens/sft/test.jsonl
+    command:
+    - python
+    - -m
+    - torch.distributed.run
+    - --standalone
+    - --nnodes=1
+    - --nproc-per-node=${NUM_GPUS}
+    - --module
+    - deltattg.integration.meter_sft
+    overrides:
+      data.micro_batch_size_per_gpu: ${MICRO_BATCH_SIZE}
+      data.multiturn.enable: 'True'
+      data.multiturn.messages_key: messages
+      +data.multiturn.assistant_loss_mode: last
+      data.balance_dp_token: 'False'
+      model.partial_pretrain: ${MODEL_PATH}
+      model.strategy: fsdp
+      model.trust_remote_code: 'False'
+      model.fsdp_config.cpu_offload: 'False'
+      model.fsdp_config.offload_params: 'False'
+      use_remove_padding: 'True'
+      ulysses_sequence_parallel_size: '1'
+      optim.warmup_steps_ratio: '0.05'
+      optim.weight_decay: '0.1'
+      optim.lr_scheduler: cosine
+      +meter_eval.data_path: ${TEST_FILE}
+      +meter_eval.output_dir: ${EVAL_OUTPUT_DIR}
+      +meter_eval.freq: ${EVAL_FREQ}
+      +meter_eval.batch_size: ${EVAL_BATCH_SIZE}
+      +meter_eval.max_new_tokens: ${EVAL_MAX_NEW_TOKENS}
+      +meter_eval.max_samples: ${EVAL_MAX_SAMPLES}
+      trainer.project_name: deltattg
+      trainer.default_hdfs_dir: 'null'
+      trainer.total_training_steps: 'null'
+      +trainer.save_freq: ${SAVE_FREQ}
+    required_paths:
+    - model.partial_pretrain
+    - data.train_files
+    - data.val_files
+    output_key: trainer.default_local_dir
+  meter_rl:
+    env:
+      DATA_DIR: ${ROOT}/TTGData/ALFWorld/meter_action_tokens/rl
+      TRAIN_FILE: ${DATA_DIR}/train.parquet
+      VAL_FILE: ${DATA_DIR}/validation.parquet
+      TRAIN_BATCH_SIZE: '32'
+      ROLLOUT_N: '8'
+      SAVE_FREQ: '20'
+      TOTAL_EPOCHS: '1'
+      PROJECT_NAME: DeltaTTG
+      EXP_NAME: ${MODEL}-${TASK}-${KIND}
+      EXPERIMENT_NAME: ${EXP_NAME}
+      OUTPUT_DIR: ${DELTATTG_STORAGE}/checkpoints/DeltaTTG/${EXP_NAME}
+      CKPT_DIR: ${OUTPUT_DIR}
+      MODEL_PATH: ''
+      NUM_GPUS: '1'
+    command:
+    - python
+    - -m
+    - verl.trainer.main_ppo
+    overrides:
+      algorithm.filter_groups.enable: 'True'
+      algorithm.filter_groups.max_num_gen_batches: '4'
+      algorithm.filter_groups.min_reward_std: 1e-4
+      algorithm.filter_groups.target_effective_groups: '24'
+      data.val_batch_size: '32'
+      data.max_response_length: '64'
+      data.filter_overlong_prompts: 'False'
+      +data.apply_chat_template_kwargs.enable_thinking: 'False'
+      actor_rollout_ref.actor.optim.lr: 3e-6
+      actor_rollout_ref.actor.ppo_mini_batch_size: '8'
+      actor_rollout_ref.actor.shuffle: 'False'
+      +actor_rollout_ref.actor.fsdp_config.model_dtype: bfloat16
+      actor_rollout_ref.rollout.mode: sync
+      actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu: '1'
+      actor_rollout_ref.rollout.gpu_memory_utilization: '0.4'
+      actor_rollout_ref.rollout.max_model_len: '16448'
+      actor_rollout_ref.rollout.max_num_batched_tokens: '16448'
+      actor_rollout_ref.rollout.max_num_seqs: '64'
+      actor_rollout_ref.rollout.enable_chunked_prefill: 'True'
+      actor_rollout_ref.rollout.temperature: '1.0'
+      actor_rollout_ref.rollout.top_p: '1.0'
+      actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu: '1'
+      +actor_rollout_ref.ref.fsdp_config.model_dtype: bfloat16
+      reward_model.reward_manager: naive
+      trainer.save_freq: ${SAVE_FREQ}
+      trainer.max_actor_ckpt_to_keep: '3'
+    required_paths:
+    - actor_rollout_ref.model.path
+    - data.train_files
+    - data.val_files
+    output_key: trainer.default_local_dir

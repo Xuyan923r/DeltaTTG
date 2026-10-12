@@ -1,0 +1,7 @@
+overrides:
+  algorithm.adv_estimator: grpo
+  credit_assignment.enabled: 'False'
+required_paths:
+- actor_rollout_ref.model.path
+- data.train_files
+- data.val_files
